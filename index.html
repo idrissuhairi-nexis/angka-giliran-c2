@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinic Queue Message Helper</title>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --card: #ffffff;
+    --ink: #2f3640;
+    --muted: #7a8390;
+    --line: #e6e3dd;
+    --accent: #4a7c6f;
+    --accent-soft: #eaf2ef;
+    --amber-soft: #fdf3e0;
+    --amber-line: #eedab4;
+    --amber-ink: #8a6320;
+    --danger: #b05c5c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    padding: 24px 16px 48px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  header.top { margin-bottom: 20px; }
+  header.top h1 { font-size: 1.35rem; font-weight: 600; letter-spacing: 0.2px; }
+  header.top p { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+
+  section.panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+  .panel-head h2 { font-size: 1.02rem; font-weight: 600; }
+  .panel-head .hint { color: var(--muted); font-size: 0.8rem; }
+
+  /* Registration */
+  .reg-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .reg-form input {
+    flex: 1 1 180px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.92rem;
+    background: #fbfaf8;
+    color: var(--ink);
+  }
+  .reg-form input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  button {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+  }
+  button:hover { filter: brightness(1.05); }
+  button:disabled { background: #c9c6bf; cursor: not-allowed; }
+  .btn-ghost { background: var(--accent-soft); color: var(--accent); }
+  .btn-wa {
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #1f8a54;
+    color: #fff;
+  }
+  .btn-wa:hover { filter: brightness(1.08); }
+  .btn-wa[aria-disabled="true"] {
+    background: #c9c6bf;
+    color: #fff;
+    pointer-events: none;
+  }
+
+  .form-msg { font-size: 0.8rem; color: var(--danger); min-height: 1em; margin: -6px 0 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th {
+    text-align: left; font-weight: 600; color: var(--muted);
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 6px 8px; border-bottom: 1px solid var(--line);
+  }
+  td { padding: 8px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  .num-badge {
+    display: inline-block; min-width: 34px; text-align: center;
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 700; border-radius: 6px; padding: 2px 6px;
+  }
+  .status-chip { font-size: 0.75rem; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .chip-now { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .chip-waiting { background: #f0efec; color: var(--muted); }
+  .chip-done { background: #f0efec; color: #b0aca4; }
+  .empty-note { color: var(--muted); font-size: 0.85rem; padding: 10px 8px; }
+
+  /* Queue board */
+  .queue-grid { display: flex; gap: 14px; flex-wrap: wrap; }
+  .q-card {
+    flex: 1 1 150px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    background: #fbfaf8;
+  }
+  .q-card .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  .q-card .value { font-size: 1.6rem; font-weight: 700; margin-top: 2px; }
+  .q-card .value.small { font-size: 1.05rem; font-weight: 600; }
+  .q-card.now { background: var(--accent-soft); border-color: var(--accent); }
+  .q-card.now .value { color: var(--accent); }
+  .q-card.next { background: var(--amber-soft); border-color: var(--amber-line); }
+  .q-card.next .value { color: var(--amber-ink); }
+  .queue-actions { margin-top: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .queue-actions .note { color: var(--muted); font-size: 0.8rem; }
+
+  /* Message preview */
+  .msg-area { display: flex; gap: 16px; flex-wrap: wrap; }
+  .wa-preview {
+    flex: 1 1 320px;
+    background: #e7f0e9;
+    border: 1px solid #cfe3d4;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .wa-bubble {
+    background: #dcf8c6;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .wa-meta { font-size: 0.72rem; color: #6f8b77; text-align: right; margin-top: 4px; }
+  .msg-side { flex: 0 1 260px; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+  .msg-side .explain { color: var(--muted); font-size: 0.82rem; }
+  .copied { color: var(--accent); font-weight: 600; font-size: 0.85rem; }
+
+  footer.rules { color: var(--muted); font-size: 0.78rem; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Clinic Queue Message Helper</h1>
+    <p>Register patients, track the queue, and prepare turn alerts &mdash; all on one screen.</p>
+  </header>
+
+  <!-- ============ SECTION 1: REGISTRATION LIST ============ -->
+  <section class="panel" id="section-register">
+    <div class="panel-head">
+      <h2>1 &middot; Registration List</h2>
+      <span class="hint">Today's registrations &mdash; nothing is saved after you close this page</span>
+    </div>
+
+    <form class="reg-form" id="regForm" autocomplete="off">
+      <input type="text" id="nameInput" placeholder="Patient name (e.g. Aisyah Rahman)" aria-label="Patient name">
+      <input type="tel" id="phoneInput" placeholder="Phone (e.g. 012-345 6789)" aria-label="Phone number">
+      <button type="submit">Add to queue</button>
+    </form>
+    <div class="form-msg" id="formMsg"></div>
+
+    <table>
+      <thead>
+        <tr><th>Queue No.</th><th>Name</th><th>Phone</th><th>Status</th></tr>
+      </thead>
+      <tbody id="regTableBody"></tbody>
+    </table>
+  </section>
+
+  <!-- ============ SECTION 2: QUEUE BOARD ============ -->
+  <section class="panel" id="section-queue">
+    <div class="panel-head">
+      <h2>2 &middot; Queue Board</h2>
+      <span class="hint">Tapping "Next" also opens WhatsApp for the next person</span>
+    </div>
+
+    <div class="queue-grid">
+      <div class="q-card now">
+        <div class="label">Now serving</div>
+        <div class="value" id="nowServing">-</div>
+        <div class="value small" id="nowName">&nbsp;</div>
+      </div>
+      <div class="q-card next">
+        <div class="label">Up next</div>
+        <div class="value" id="upNext">-</div>
+        <div class="value small" id="upNextName">&nbsp;</div>
+      </div>
+      <div class="q-card">
+        <div class="label">Getting close</div>
+        <div class="value small" id="closeList">-</div>
+      </div>
+      <div class="q-card">
+        <div class="label">Waiting</div>
+        <div class="value" id="waitingCount">0</div>
+        <div class="value small">people in line</div>
+      </div>
+    </div>
+
+    <div class="queue-actions">
+      <button id="nextBtn">Next &rarr; move queue + open WhatsApp</button>
+      <button class="btn-ghost" id="resetBtn">Reset demo</button>
+      <span class="note" id="queueNote"></span>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3: WHATSAPP MESSAGE PREVIEW ============ -->
+  <section class="panel" id="section-message">
+    <div class="panel-head">
+      <h2>3 &middot; WhatsApp Message Preview</h2>
+      <span class="hint">Sample text only &mdash; not connected to WhatsApp</span>
+    </div>
+
+    <div class="msg-area">
+      <div class="wa-preview">
+        <div class="wa-bubble" id="waBubble">-</div>
+        <div class="wa-meta" id="waMeta"></div>
+      </div>
+      <div class="msg-side">
+        <div class="explain" id="msgExplain">Alerts appear here for the person getting close to their turn.</div>
+        <a class="btn-wa" id="waLink" href="#" target="_blank" rel="noopener" role="button" aria-disabled="true">Open in WhatsApp</a>
+        <button class="btn-ghost" id="copyBtn">Copy message text</button>
+        <span class="copied" id="copyFeedback" hidden>Copied!</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="rules">
+    Demo helper with sample data only. Phone numbers shown are made-up examples. Nothing is stored or sent anywhere.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Sample data (made-up, Malaysian-style entries) ----------
+  var clinicName = "Klinik Sejahtera";
+  var patients = [
+    { name: "Aisyah Rahman",   phone: "012-345 6789" },
+    { name: "Tan Wei Ming",    phone: "017-881 2345" },
+    { name: "Priya Letchuman", phone: "013-226 7788" }
+  ];
+  patients.forEach(function (p, i) { p.no = i + 1; });
+
+  var currentNo = 1;   // queue number now being served
+  var CLOSE_WINDOW = 2; // "getting close" = within 2 positions after the next one
+
+  // ---------- Helpers ----------
+  var $ = function (id) { return document.getElementById(id); };
+
+  function statusOf(p) {
+    if (p.no < currentNo) return "done";
+    if (p.no === currentNo) return "now";
+    return "waiting";
+  }
+
+  function waitingPatients() {
+    return patients.filter(function (p) { return p.no >= currentNo; });
+  }
+
+  function closePatients() {
+    // people after the next one, within the close window
+    return patients.filter(function (p) {
+      return p.no > currentNo + 1 && p.no <= currentNo + 1 + CLOSE_WINDOW;
+    });
+  }
+
+  function alertTarget() {
+    // notify the person who is NEXT: when the current number is called,
+    // they are 1 person away from their turn (the one being served)
+    var upcoming = patients.filter(function (p) { return p.no > currentNo; })
+                           .sort(function (a, b) { return a.no - b.no; });
+    return upcoming[0] || null;
+  }
+
+  function buildAlertText(p) {
+    return "Hello " + p.name + ", this is " + clinicName + ". " +
+           "You are number " + p.no + " in the queue. " +
+           "The clinic is now serving number " + currentNo + ", so you are next \u2014 " +
+           "there is 1 person in front of you. Please get ready to come to the counter. " +
+           "Thank you!";
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // Convert a local Malaysian number like "012-345 6789" to international
+  // digits "60123456789" for the wa.me link. Unknown formats pass through
+  // with formatting stripped; if nothing usable remains, returns "".
+  function toWaNumber(phone) {
+    var digits = phone.replace(/[^0-9]/g, "");
+    if (digits === "") return "";
+    if (digits.charAt(0) === "0") return "6" + digits; // 0xxx -> 60xxx (Malaysia)
+    if (digits.charAt(0) === "6") return digits;        // already has country code
+    return digits;
+  }
+
+  function updateWaLink(target) {
+    var link = $("waLink");
+    if (!target) {
+      link.setAttribute("href", "#");
+      link.setAttribute("aria-disabled", "true");
+      link.removeAttribute("target");
+      return;
+    }
+    var num = toWaNumber(target.phone);
+    if (!num) {
+      link.setAttribute("href", "#");
+      link.setAttribute("aria-disabled", "true");
+      link.removeAttribute("target");
+      return;
+    }
+    link.setAttribute("href", "https://wa.me/" + num + "?text=" + encodeURIComponent(buildAlertText(target)));
+    link.setAttribute("aria-disabled", "false");
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener");
+  }
+
+  // ---------- Render ----------
+  function render() {
+    // Registration table
+    var tbody = $("regTableBody");
+    tbody.innerHTML = "";
+    if (patients.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-note">No registrations yet &mdash; add the first person above.</td></tr>';
+    }
+    patients.forEach(function (p) {
+      var st = statusOf(p);
+      var chip =
+        st === "now"    ? '<span class="status-chip chip-now">Now serving</span>' :
+        st === "done"   ? '<span class="status-chip chip-done">Done</span>' :
+                          '<span class="status-chip chip-waiting">Waiting</span>';
+      var row = document.createElement("tr");
+      if (st === "now") row.style.background = "var(--accent-soft)";
+      if (p.close) row.style.background = "var(--amber-soft)";
+      row.innerHTML =
+        "<td><span class='num-badge'>" + p.no + "</span></td>" +
+        "<td>" + escapeHtml(p.name) + "</td>" +
+        "<td>" + escapeHtml(p.phone) + "</td>" +
+        "<td>" + chip + "</td>";
+      tbody.appendChild(row);
+    });
+
+    // Queue board
+    var nowP = patients.find(function (p) { return p.no === currentNo; });
+    $("nowServing").textContent = nowP ? "No. " + currentNo : "Queue finished";
+    $("nowName").innerHTML = nowP ? escapeHtml(nowP.name) : "&mdash;";
+
+    var upcoming = waitingPatients().filter(function (p) { return p.no > currentNo; })
+                                    .sort(function (a, b) { return a.no - b.no; });
+    var nextP = upcoming[0];
+    $("upNext").textContent = nextP ? "No. " + nextP.no : "-";
+    $("upNextName").innerHTML = nextP ? escapeHtml(nextP.name) : "&nbsp;";
+
+    // highlight "getting close" people in table + board card
+    patients.forEach(function (p) { p.close = false; });
+    var close = closePatients();
+    close.forEach(function (p) { p.close = true; });
+    $("closeList").innerHTML = close.length
+      ? close.map(function (p) { return "No. " + p.no + " &middot; " + escapeHtml(p.name); }).join("<br>")
+      : "-";
+    // re-render table rows with close highlight
+    Array.prototype.forEach.call(tbody.querySelectorAll("tr"), function (row, i) {
+      var p = patients[i];
+      if (p && p.close) row.style.background = "var(--amber-soft)";
+    });
+
+    $("waitingCount").textContent = upcoming.length;
+
+    var remaining = upcoming.length;
+    $("queueNote").textContent = remaining === 0
+      ? "Everyone has been served."
+      : remaining + (remaining === 1 ? " person still" : " people still") + " waiting.";
+
+    // Message preview
+    var target = alertTarget();
+    if (target) {
+      $("waBubble").textContent = buildAlertText(target);
+      $("waMeta").textContent = "Prepared for " + target.phone + " \u00b7 not sent";
+      $("msgExplain").textContent =
+        "Number " + currentNo + " is being called now. " + target.name + " (No. " + target.no +
+        ") is next \u2014 send them the alert so they can get ready. " +
+        "Tap \"Open in WhatsApp\" or copy the text.";
+      $("copyBtn").disabled = false;
+    } else {
+      $("waBubble").textContent =
+        "Hello, this is " + clinicName + ". The queue has reached the last patient for now. " +
+        "New alerts will appear here when more people register. Thank you!";
+      $("waMeta").textContent = "";
+      $("msgExplain").textContent = "No one is waiting next in line right now.";
+      $("copyBtn").disabled = true;
+    }
+    updateWaLink(target);
+    $("copyFeedback").hidden = true;
+  }
+
+  // ---------- Feature 1: Add person ----------
+  $("regForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = $("nameInput").value.trim();
+    var phone = $("phoneInput").value.trim();
+    var msg = $("formMsg");
+
+    if (!name || !phone) {
+      msg.textContent = "Please fill in both the name and the phone number.";
+      return;
+    }
+    if (name.length > 60) {
+      msg.textContent = "That name is too long &mdash; please keep it under 60 characters.";
+      return;
+    }
+    msg.textContent = "";
+
+    var nextNo = patients.reduce(function (m, p) { return Math.max(m, p.no); }, 0) + 1;
+    patients.push({ name: name, phone: phone, no: nextNo });
+    $("nameInput").value = "";
+    $("phoneInput").value = "";
+    $("nameInput").focus();
+    render();
+  });
+
+  // ---------- Feature 2: Move queue forward ----------
+  $("nextBtn").addEventListener("click", function () {
+    var maxNo = patients.reduce(function (m, p) { return Math.max(m, p.no); }, 0);
+    if (currentNo >= maxNo) return; // everyone already served
+    currentNo++;
+    render();
+
+    // Also open WhatsApp for the person who is now next (1 away from turn),
+    // so staff only press "Next" here + "Send" in WhatsApp.
+    var link = $("waLink");
+    var href = link.getAttribute("href");
+    if (href && href !== "#") {
+      window.open(href, "_blank", "noopener");
+    }
+  });
+
+  $("resetBtn").addEventListener("click", function () {
+    patients = [
+      { name: "Aisyah Rahman",   phone: "012-345 6789", no: 1 },
+      { name: "Tan Wei Ming",    phone: "017-881 2345", no: 2 },
+      { name: "Priya Letchuman", phone: "013-226 7788", no: 3 }
+    ];
+    currentNo = 1;
+    render();
+  });
+
+  // ---------- Feature 3: Copy alert text ----------
+  $("copyBtn").addEventListener("click", function () {
+    var text = $("waBubble").textContent;
+    var done = function () {
+      $("copyFeedback").hidden = false;
+      setTimeout(function () { $("copyFeedback").hidden = true; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {
+        fallbackCopy(text); done();
+      });
+    } else {
+      fallbackCopy(text); done();
+    }
+  });
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (err) { /* ignore */ }
+    document.body.removeChild(ta);
+  }
+
+  // ---------- First paint ----------
+  render();
+})();
+</script>
+</body>
+</html>
